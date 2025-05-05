@@ -86,3 +86,47 @@ def is_data_present():
     count = cursor.fetchone()[0]
     conn.close()
     return count > 0
+
+
+
+
+# ----------------- GEOJSON FROM GOOGLE DRIVE -----------------
+file_id_geojson = "1gnux_uKipCE4f-hiThO7c_WHF8kx8nh8"
+geojson_url = f"https://drive.google.com/uc?id={file_id_geojson}"
+
+try:
+    # Load GeoJSON directly from Google Drive
+    response = requests.get(geojson_url)
+    if response.status_code != 200:
+        raise Exception("Failed to download GeoJSON")
+
+    geojson_bytes = BytesIO(response.content)
+    city_gdf = gpd.read_file(geojson_bytes)
+
+    # Filter for selected city
+    selected_city_boundary = city_gdf[city_gdf["CITY"].str.lower() == city.lower()]
+
+    if not selected_city_boundary.empty:
+        # Use representative point as map center
+        city_center = selected_city_boundary.geometry.representative_point().iloc[0].coords[0][::-1]
+
+        # Create Folium map
+        m = folium.Map(location=city_center, zoom_start=11)
+
+        # Add city outline
+        folium.GeoJson(
+            selected_city_boundary.geometry,
+            style_function=lambda x: {
+                "fillOpacity": 0,
+                "color": "blue",
+                "weight": 3
+            }
+        ).add_to(m)
+
+        st.write(f"### 🗺 City Outline for {city.title()}")
+        st_folium(m, width=800, height=500)
+    else:
+        st.warning(f"City '{city}' not found in the GeoJSON file.")
+
+except Exception as e:
+    st.error(f"Map rendering failed: {e}")
