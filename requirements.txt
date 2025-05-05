@@ -7,3 +7,11 @@ folium
 streamlit-folium
 gdown
 statsmodels
+pandas
+requests
+streamlit
+sqlite3-binary
+geopandas
+folium
+geopy
+streamlit-folium
