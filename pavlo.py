@@ -1,32 +1,34 @@
 import pandas as pd
-import sqlite3
-import urllib.parse
-import streamlit as st
 import requests
-from io import StringIO
+import sqlite3
+import streamlit as st
+import urllib.parse
+from io import StringIO, BytesIO
+from geopy.geocoders import Nominatim
+import geopandas as gpd
+import folium
+from streamlit_folium import st_folium
 
 # ----------------- DATABASE & FILE PATH SETUP -----------------
 DB_FILE = "vaccination_data.db"
 USER_DB = "users.db"
 
-# ----------------- GOOGLE DRIVE LINKS -----------------
-
-# 1. Google Sheet (Public, CSV Export)
+# ----------------- GOOGLE DRIVE FILE IDS -----------------
+# File 1: Google Sheet
 sheet_id = "1hJEb7aMjrD-EfAoN9jdhwBK2m9o0U-mh"
 sheet_name = "not_vaccinated_analysis (3)"
 encoded_sheet_name = urllib.parse.quote(sheet_name)
 DATASET_URL_1 = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
-# 2. Public CSV from Google Drive
+# File 2: Public CSV from Google Drive
 file_id_2 = "1Fswh6Eq_wrsf5FbpaaUve9K0KOZ6q3zg"
 DATASET_URL_2 = f"https://drive.google.com/uc?id={file_id_2}"
 
-# 3. Another Public CSV from Google Drive
+# File 3: GeoJSON file from Google Drive (used for mapping only)
 file_id_3 = "1gnux_uKipCE4f-hiThO7c_WHF8kx8nh8"
-DATASET_URL_3 = f"https://drive.google.com/uc?id={file_id_3}"
+GEOJSON_URL = f"https://drive.google.com/uc?id={file_id_3}"
 
-# ----------------- LOAD DATASETS -----------------
-
+# ----------------- FUNCTION TO LOAD CSV FILES -----------------
 def load_csv_from_url(url, label):
     try:
         response = requests.get(url)
@@ -37,18 +39,15 @@ def load_csv_from_url(url, label):
         st.error(f"Error loading {label}: {e}")
         return pd.DataFrame()
 
-# Load all three datasets
+# ----------------- LOAD DATASETS -----------------
 df1 = load_csv_from_url(DATASET_URL_1, "Google Sheet Data")
 df2 = load_csv_from_url(DATASET_URL_2, "Drive File 2")
-df3 = load_csv_from_url(DATASET_URL_3, "Drive File 3")
+# Note: DO NOT LOAD df3 here — it's used only as GeoJSON in map section
 
 # ----------------- DATABASE FUNCTIONS -----------------
-
-# Function to create database connection
 def create_connection(db_path):
     return sqlite3.connect(db_path)
 
-# Function to create user database
 def setup_user_database():
     conn = create_connection(USER_DB)
     cursor = conn.cursor()
@@ -60,7 +59,6 @@ def setup_user_database():
     conn.commit()
     conn.close()
 
-# Function to create vaccination database
 def setup_vaccination_database():
     conn = create_connection(DB_FILE)
     cursor = conn.cursor()
@@ -78,7 +76,6 @@ def setup_vaccination_database():
     conn.commit()
     conn.close()
 
-# Function to check if data exists in the table (placeholder)
 def is_data_present():
     conn = create_connection(DB_FILE)
     cursor = conn.cursor()
@@ -87,18 +84,17 @@ def is_data_present():
     conn.close()
     return count > 0
 
+# ----------------- MAP & SUMMARY SECTION -----------------
+st.header("🗺 City Map Viewer")
 
-
-
-# ----------------- GEOJSON FROM GOOGLE DRIVE -----------------
-file_id_geojson = "1gnux_uKipCE4f-hiThO7c_WHF8kx8nh8"
-geojson_url = f"https://drive.google.com/uc?id={file_id_geojson}"
+city = st.text_input("Enter City Name", "Los Angeles")
+state = st.text_input("Enter State Name", "California")
 
 try:
-    # Load GeoJSON directly from Google Drive
-    response = requests.get(geojson_url)
+    # Load GeoJSON from Google Drive
+    response = requests.get(GEOJSON_URL)
     if response.status_code != 200:
-        raise Exception("Failed to download GeoJSON")
+        raise Exception("Failed to download GeoJSON from Google Drive")
 
     geojson_bytes = BytesIO(response.content)
     city_gdf = gpd.read_file(geojson_bytes)
