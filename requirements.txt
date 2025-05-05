@@ -1,11 +1,9 @@
-pandas
-openpyxl
 streamlit
-statsmodels
-plotly
+pandas
 numpy
-scipy
-geopy
+plotly
+geopandas
+folium
+streamlit-folium
 gdown
-
-
+statsmodels
