@@ -1,16 +1,6 @@
-streamlit
-pandas
-numpy
-plotly
-geopandas
-folium
-streamlit-folium
-gdown
-statsmodels
 pandas
 requests
 streamlit
-sqlite3-binary
 geopandas
 folium
 geopy
